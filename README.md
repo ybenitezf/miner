@@ -41,3 +41,29 @@ $ python miner.py
 ```
 
 ## ¿Cómo implementar un plugin?
+
+### Ejemplo 1
+
+En forma de ejemplo vamos construir un plugin que cuente la cantidad veces que
+un usuario entro en facebook, al final la salida de nuestro plugin sera un
+archivo de texto con dos columnas por linea de la forma:
+
+```usuario, cantidad```
+
+Para esto vamos a añadir un modulo al directorio ```plugins``` en la raíz de
+miner, a este lo vamos a llamar ```cuetafb.py``` con el código:
+
+```python
+from parser.logParser import LogObserverPlugin, SQUIDLogEntry, CommonLogEntry
+
+class CuentaFB(LogObserverPlugin):
+
+    def __init__(self, *args, **kwargs):
+        super(CuentaFB, self).__init__(*args, **kwargs)
+
+    def notificar(self, entry):
+        pass
+    
+    def writeOutput(self):
+        pass
+```
