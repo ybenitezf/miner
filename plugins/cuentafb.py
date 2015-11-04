@@ -1,6 +1,9 @@
 # coding: utf-8
 __author__ = 'Yoel Benítez Fonseca <ybenitezf@gmail.com>'
 
+__doc__ = """Cuenta la cantidad veces que un usuario entra en facebook e 
+imprime en la consola al final de la ejecución de miner esa lista"""
+
 from parser.logParser import LogObserverPlugin, SQUIDLogEntry, CommonLogEntry
 
 class CuentaFB(LogObserverPlugin):

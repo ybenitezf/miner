@@ -1,5 +1,10 @@
 # coding: utf-8
 __author__ = 'Yoel Benítez Fonseca <ybenitezf@gmail.com>'
+__doc__ = """ReporterObserver
+
+Un plugin que va mostrando en la pantalla la cantidad de bytes en log que se 
+van procesando por miner.
+"""
 
 from parser.logParser import LogObserverPlugin, LogEntry
 import sys
@@ -34,4 +39,5 @@ class ReporterObserver(LogObserverPlugin):
             self.count += 1
 
     def writeOutput(self):
+        """No es necesario en este caso"""
         pass
