@@ -67,8 +67,7 @@ class CuentaFB(LogObserverPlugin):
     def writeOutput(self):
         pass
 ```
-En la línea 1 se importan las clases necesarias para interactuar con
-```miner```.
+En la línea 1 se importan las clases necesarias para interactuar con ```miner```
 
 En la línea 2 se declara la clase principal de nuestro plugin, para que un 
 plugin nuestro sea reconocido por ```miner``` este debe heredar de la clase
