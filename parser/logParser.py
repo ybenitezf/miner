@@ -109,7 +109,8 @@ class SQUIDLogEntry(LogEntry):
             self.size = float(fields[4])
             self.method = fields[5]
             self.uri = fields[6]
-            self.userId = self.clientIP if fields[7] == "-" else fields[7]
+            #self.userId = self.clientIP if fields[7] == "-" else fields[7]
+            self.userId = self.fields[7]
             self.heriarchy = fields[8]
             self.contentType = fields[9]
         except Exception, e:

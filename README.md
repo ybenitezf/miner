@@ -67,3 +67,39 @@ class CuentaFB(LogObserverPlugin):
     def writeOutput(self):
         pass
 ```
+En la línea 1 se importan las clases necesarias para interactuar con
+```miner```.
+
+En la línea 2 se declara la clase principal de nuestro plugin, para que un 
+plugin nuestro sea reconocido por ```miner``` este debe heredar de la clase
+```LogObserverPlugin```. Los plugins deben encargarse de implementar los 
+métodos ```notificar``` y ```writeOutput```. Por el primero cada uno de los
+plugins es notificado de que se a leido una nueva entrada, esta entrada debe
+ser de tipo ```SQUIDLogEntry``` o ```CommonLogEntry```, ambas descienden de 
+```LogEntry``` vease el código en ```parser.logParser```. El segundo método
+es llamado una vez que se han leido todas las entradas y puede usarse por los
+plugins para generar archivos de datos en otros formatos como por ejemplo ARFF.
+
+Para nuestro ejemplo solo tendremos en cuenta las entradas del tipo
+```SQUIDLogEntry```, además solo vamos a querer las que tengan asociado un
+usuario valido - muchas de las entradas que se leeran del log no tendrán ninguno
+asi que pueden ser desechadas. Las modificaciones a nuestro plugin serían:
+
+```python
+from parser.logParser import LogObserverPlugin, SQUIDLogEntry, CommonLogEntry
+
+class CuentaFB(LogObserverPlugin):
+
+    def __init__(self, *args, **kwargs):
+        super(CuentaFB, self).__init__(*args, **kwargs)
+
+    def notificar(self, entry):
+        if isinstance(entry, SQUIDLogEntry):
+            # si la entrada es del access.log de squid
+            if entry.userId != '-':
+                # si el usuario se ha definido
+                pass
+    
+    def writeOutput(self):
+        pass
+```
