@@ -103,3 +103,35 @@ class CuentaFB(LogObserverPlugin):
     def writeOutput(self):
         pass
 ```
+
+Para terminar la implementación de nuestro plugin solo nos falta escribir la salida mediante el método ```writeOutput```:
+
+```python
+from parser.logParser import LogObserverPlugin, SQUIDLogEntry, CommonLogEntry
+
+class CuentaFB(LogObserverPlugin):
+
+    def __init__(self, *args, **kwargs):
+        super(CuentaFB, self).__init__(*args, **kwargs)
+        # iniciar un diccionario
+        self.data = dict()
+
+    def notificar(self, entry):
+        if isinstance(entry, SQUIDLogEntry):
+            # si la entrada es de un access.log de squid
+            if entry.userId != '-':
+                # si el usuario se ha definido
+                remoto = entry.get_remote_host()
+                if remoto.find('facebook.com') >= 0:
+                    # debemos contar esta entrada
+                    if self.data.has_key(entry.userId):
+                        self.data[entry.userId] += 1
+                    else:
+                        self.data[entry.userId] = 1
+    
+    def writeOutput(self):
+        for usuario in self.data.keys():
+            print "{0}, {1}".format(usuario, self.data[usuario])
+```
+
+Y listo, tenemos el plugin completo.
