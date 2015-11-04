@@ -134,4 +134,9 @@ class CuentaFB(LogObserverPlugin):
             print "{0}, {1}".format(usuario, self.data[usuario])
 ```
 
-Y listo, tenemos el plugin completo.
+Y listo, tenemos el plugin completo. Ahora para activar el plugin en ```miner``` debemos editar ```config.ini``` y añadir el nombre de nuestro plugin en la lista de plugins activos:
+
+```
+plugins=cuetafb
+```
+Noten que no se agrega el ```.py``` al final.
