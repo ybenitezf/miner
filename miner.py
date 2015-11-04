@@ -14,13 +14,16 @@ def import_plugins(plug_list):
     """
     import_base = path.join(path.dirname(path.abspath(__file__)), 'plugins')
     sys.path.append(import_base)
-    print "Cargando plugins:"
+    print "Cargando plugins"
     for plug in plug_list:
         try:
             import_module(plug)
             print "{0}: OK".format(plug)
         except ImportError, e:
             print "{0}: ERR {1}".format(plug, e)
+        except ValueError, e:
+            # pasar en blanco si el nombre del plugin esta vacio
+            pass
 
 
 def main():
@@ -37,10 +40,13 @@ def main():
     # incializar cada uno de los plugins
     plugs = LogObserverPlugin.get_plugins(parser=par, config=config)
     # inciar el procesamiento de los logs
+    print "Parsing..."
     par.parse()
     # notificar a cada plugin para que escriba sus archivos de salida
+    print "Escribiendo salida"
     for p in plugs:
         p.writeOutput()
+    print "Listo"
     return 0
 
 if __name__ == '__main__':

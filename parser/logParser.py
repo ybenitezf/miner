@@ -35,9 +35,10 @@ class LogEntry(object):
             # squid access log
             return SQUIDLogEntry(line, offset)
         except Exception, e:
-            print e
-            print line
-            print parts
+            #print e
+            #print line
+            #print parts
+            return None
 
     def get_remote_host(self):
         """Retorna el nombre del host remoto
@@ -98,24 +99,24 @@ class SQUIDLogEntry(LogEntry):
     def __init__(self, line, offset):
         super(SQUIDLogEntry, self).__init__(line, offset)
         line = line.strip('\n')
-        try:
-            fields = line.split()
-            self.timeStamp = datetime.fromtimestamp(float(fields[0]))
-            self.timeElapsed = float(fields[1])
-            self.clientIP = fields[2]
-            action, code = fields[3].split('/')
-            self.action = action
-            self.code = code
-            self.size = float(fields[4])
-            self.method = fields[5]
-            self.uri = fields[6]
-            #self.userId = self.clientIP if fields[7] == "-" else fields[7]
-            self.userId = self.fields[7]
-            self.heriarchy = fields[8]
-            self.contentType = fields[9]
-        except Exception, e:
-            print e
-            self.userId = '-'
+        #try:
+        fields = line.split()
+        self.timeStamp = datetime.fromtimestamp(float(fields[0]))
+        self.timeElapsed = float(fields[1])
+        self.clientIP = fields[2]
+        action, code = fields[3].split('/')
+        self.action = action
+        self.code = code
+        self.size = float(fields[4])
+        self.method = fields[5]
+        self.uri = fields[6]
+        #self.userId = self.clientIP if fields[7] == "-" else fields[7]
+        self.userId = fields[7]
+        self.heriarchy = fields[8]
+        self.contentType = fields[9]
+        #except Exception, e:
+            #print e
+        #    self.userId = '-'
 
     def get_remote_host(self):
         """Extrae el nombre del servidor remoto"""
