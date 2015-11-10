@@ -12,6 +12,12 @@ class LogEntry(object):
     """
     Representa una entrada de archivo de log, para cada tipo de log se tendrá
     una clase que hereda de esta.
+    
+    atributos:
+    
+    raw (str): linea de texto de la entrada exactamente como se leyo del log
+    offset (int): indice dentro del archivo de texto en que se encontro la 
+                  entrada
     """
     def __init__(self, line, offset):
         super(LogEntry, self).__init__()
@@ -55,7 +61,19 @@ class LogEntry(object):
         return self.__str__()
 
 class CommonLogEntry(LogEntry):
-    """Common Log para apache y co"""
+    """Common Log para apache y compañia
+    
+    
+    atributos y propiedades:
+    
+    timeStamp (datetime): fecha y hora en que se proceso la petición
+    clientIP: número IP del cliente
+    action: acción/sección de la página visitada
+    uri: url del recurso al que se accedio
+    code: código HTTP de la respuesta
+    size: tamaño del objeto retornado al usuario sin incluir las cabeceras
+    userId: identificador del usuario o '-' en caso de que no se tenga
+    """
 
     def __init__(self, line, offset):
         super(CommonLogEntry, self).__init__(line, offset)
@@ -73,12 +91,12 @@ class CommonLogEntry(LogEntry):
         else:
             self.action, self.uri = (act, act)
         self.code = self.values['%>s']
-        self.size = 0
+        try:
+            self.size = int(self.values['%b'])
+        except:
+            self.size = 0
         self.method = act[0]
-        if self.values['%u'] != '-':
-            self.userId = self.values['%u']
-        else:
-            self.userId = self.clientIP
+        self.userId = self.values['%u']
         self.heriarchy = '-'
         self.contentType = '-'
 
