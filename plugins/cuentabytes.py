@@ -25,6 +25,7 @@ Ejemplo de sección de configuración
 
 [CuentaBytes]
 usuarios=1
+lista_clientes=lista_clientes.txt
 sitios=sitios.txt
 salida=cuentabytes.arff
 
@@ -43,6 +44,10 @@ youtube.com
 
 'salida' es el nombre del archivo de salida, será reescrito en caso de existir
 
+'lista_clientes' si se define debe apuntar a un archivo de texto que debe 
+contener la lista de usuarios o números IP (dependiendo del parametro 
+'usuarios') de los clientes que se tendrán en cuenta.
+
 [1] https://github.com/ybenitezf/miner/wiki#configuraci%C3%B3n
 """
 
@@ -54,30 +59,57 @@ class CuentaBytes(LogObserverPlugin):
 
     def __init__(self, *args, **kwargs):
         super(CuentaBytes, self).__init__(*args, **kwargs)
-        self.habilitado = False
+        self.configurado = False
         try:
             self.usuarios = self.config.getboolean('CuentaBytes','usuarios')
             site_file = self.config.get('CuentaBytes', 'sitios')
+            try:
+                lista_clientes = self.config.get('CuentaBytes',
+                    'lista_clientes')
+            except:
+                lista_clientes = 'no_hay_lista.txt'
             data_dir = self.config.get('main', 'data_dir')
             m_path = os.path.join(data_dir, 'CuentaBytes')
+            lista_clientes = os.path.join(m_path, lista_clientes)
             m_path = os.path.join(m_path, site_file)
             self.site_list = []
             for s in open(m_path, 'r'):
-                self.site_list.append(s.strip('\n\r '))
-            self.habilitado = True
+                v = s.strip('\n\r ')
+                if v != '':
+                    self.site_list.append(v)
+            self.configurado = True
+            self.clientes = []
+            if os.path.exists(lista_clientes):
+                for c  in open(lista_clientes, 'r'):
+                    v = c.strip('\n\r ')
+                    if v != '':
+                        self.clientes.append(v)
             # almacen para los sumadores
             self.values = dict()
         except:
             # fallar en silencio
             self.habilitado = False
 
+    def cliente_en_lista(self, cliente):
+        if not self.clientes:
+            # si esta vacia no se configuro la lista de clientes
+            return True
+        return cliente in self.clientes
 
     def notificar(self, entry):
-        if isinstance(entry, SQUIDLogEntry) and self.habilitado:
+        if isinstance(entry, SQUIDLogEntry) and self.configurado:
             sitio = entry.get_remote_host()
             key = entry.userId
             if not self.usuarios:
-                self.key = entry.clientIP
+                key = entry.clientIP
+            if (key == '-') and self.usuarios:
+                # dejar pasar las entradas que no contengan un usuario 
+                # autenticado cuando se esta en modo de usuarios
+                return
+            if not self.cliente_en_lista(key):
+                # si no esta en la lista de clientes a tener en cuenta entonces
+                # no procesarlo.
+                return
             if not self.values.has_key(key):
                 vector = [0 for i in self.site_list]
                 self.values[key] = vector
