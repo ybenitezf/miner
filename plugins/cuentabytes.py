@@ -123,8 +123,9 @@ class CuentaBytes(LogObserverPlugin):
                 self.values[key][control] += entry.size
 
     def writeOutput(self):
-        self.dump_arff(open(
-            self.config.get('CuentaBytes', 'salida'),'w'))
+        if self.configurado:
+            self.dump_arff(open(
+                self.config.get('CuentaBytes', 'salida'),'w'))
 
     def dump_arff(self,of):
         of.write("@RELATION    cuentabytes\n")
