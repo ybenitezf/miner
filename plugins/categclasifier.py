@@ -85,24 +85,41 @@ class Category(object):
         return content
 
 class CategoryClassifier(LogObserverPlugin):
+    """
+
+    [CategoryClassifier]
+    categorias=categorias
+    output=categ.arff
+
+    Donde:
+        categorias - es el nombre de un directorio dentro del cual se tomaran
+                    como categoria cada una de las carpetas dentro de este
+        output - archivo de salida en formato ARFF
+    """
 
     def __init__(self, *args, **kwargs):
         super(CategoryClassifier, self).__init__(*args, **kwargs)
-        self.configured = True
-        self.categories = []
-        classes_dir = self.config.get('CategoryClassifier', 'categorias')
-        db_dir = self.config.get('CategoryClassifier', 'database')
-        # chequear BD
-        self.db = sqlite3.connect(db_dir)
-        self.define_tables()
-        if not os.path.exists(db_dir):
-            self.build_database()
-        (dirpath, categories, filenames) = os.walk(classes_dir).next()
-        self.define_tables()
-        for cat in categories:
-            c = Category(os.path.join(dirpath, cat), cat)
-            self.categories.append(c)
-        self.vectors = dict()
+        self.configurado = True
+        try:
+            self.categories = []
+            classes_dir = self.config.get('CategoryClassifier', 'categorias')
+            data_dir = self.config.get('main', 'data_dir')
+            data_dir = os.path.join(data_dir, 'CategoryClassifier')
+            classes_dir = os.path.join(data_dir, classes_dir)
+            db_dir = os.path.join(data_dir, 'database.db')
+            (dirpath, categories, filenames) = os.walk(classes_dir).next()
+            # self.define_tables()
+            for cat in categories:
+                c = Category(os.path.join(dirpath, cat), cat)
+                self.categories.append(c)
+            # chequear BD
+            if not os.path.exists(db_dir):
+                self.build_database(db_dir)
+            self.db = sqlite3.connect(db_dir)
+            self.define_tables()
+            self.vectors = dict()
+        except Exception, e:
+            self.configurado = False
 
     def define_tables(self):
         cur = self.db.cursor()
@@ -120,7 +137,9 @@ class CategoryClassifier(LogObserverPlugin):
         cur.execute("TRUNCATE TABLE category;")
         self.db.commit()
 
-    def build_database(self):
+    def build_database(self, db_dir):
+        self.db = sqlite3.connect(db_dir)
+        self.define_tables()
         cur=self.db.cursor()
         id=0
         for cat in self.categories:
@@ -133,19 +152,19 @@ class CategoryClassifier(LogObserverPlugin):
             print "Done!."
 
     def notificar(self, entry):
-        if isinstance(entry, SQUIDLogEntry):
+        if isinstance(entry, SQUIDLogEntry) and self.configurado:
             if entry.action in self.actions:
                 vector = self.do_classification(entry)
                 if entry.userId in self.vectors.keys():
                     self.merge(self.vectors[entry.userId], vector)
                 else:
                     self.vectors[entry.userId] = vector
-        elif isinstance(entry, CommonLogEntry):
+        elif isinstance(entry, CommonLogEntry) and self.configurado:
             vector = self.do_classification(entry)
-            if entry.userId in self.vectors.keys():
-                self.merge(self.vectors[entry.userId], vector)
+            if entry.clientIP in self.vectors.keys():
+                self.merge(self.vectors[entry.clientIP], vector)
             else:
-                self.vectors[entry.userId] = vector
+                self.vectors[entry.clientIP] = vector
 
     def merge(self, old, new):
         c = 0
@@ -167,8 +186,9 @@ class CategoryClassifier(LogObserverPlugin):
         return vector
 
     def writeOutput(self):
-        self.dump_arff(open(
-            self.config.get('CategoryClassifier', 'output'),'w'))
+        if self.configurado:
+            self.dump_arff(open(
+                self.config.get('CategoryClassifier', 'output'),'w'))
 
     def dump_arff(self,of):
         of.write("@RELATION    categoryclassifier\n")

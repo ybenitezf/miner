@@ -14,5 +14,5 @@ class PluginMount(type):
         else:
             cls.plugins.append(cls)
 
-    def get_plugins(cls, *args, **kwargs):
-        return [p(*args,**kwargs) for p in cls.plugins]
+    def get_plugins(self, *args, **kwargs):
+        return [p(*args,**kwargs) for p in self.plugins]
