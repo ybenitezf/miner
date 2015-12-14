@@ -7,6 +7,7 @@ import apachelog
 import os
 import os.path
 from core.plugs import PluginMount
+import sys
 
 class LogEntry(object):
     """
@@ -32,19 +33,24 @@ class LogEntry(object):
     def build_entry(line, offset):
         """Factoria para entradas de log"""
         parts = line.split()
+        squid_log = False
         import socket
         try:
             addr = socket.inet_aton(parts[0])
-            # apache common log
-            return CommonLogEntry(line, offset)
         except socket.error, e:
             # squid access log
-            return SQUIDLogEntry(line, offset)
-        except Exception, e:
-            #print e
-            #print line
-            #print parts
-            return None
+            entry_type = True
+
+        try:
+            if entry_type:
+                # intentar construir un SQUIDLogEntry
+                return SQUIDLogEntry(line, offset)
+            else:
+                # intentar construir un CommonLogEntry
+                return CommonLogEntry(line, offset)
+        except:
+            # sin ocurre un error, el que sea, retornar None
+            return None 
 
     def get_remote_host(self):
         """Retorna el nombre del host remoto
@@ -117,7 +123,7 @@ class SQUIDLogEntry(LogEntry):
     def __init__(self, line, offset):
         super(SQUIDLogEntry, self).__init__(line, offset)
         line = line.strip('\n')
-        #try:
+#         try:
         fields = line.split()
         self.timeStamp = datetime.fromtimestamp(float(fields[0]))
         self.timeElapsed = float(fields[1])
@@ -128,13 +134,15 @@ class SQUIDLogEntry(LogEntry):
         self.size = float(fields[4])
         self.method = fields[5]
         self.uri = fields[6]
-        #self.userId = self.clientIP if fields[7] == "-" else fields[7]
+            # self.userId = self.clientIP if fields[7] == "-" else fields[7]
         self.userId = fields[7]
         self.heriarchy = fields[8]
         self.contentType = fields[9]
-        #except Exception, e:
-            #print e
-        #    self.userId = '-'
+#         except Exception:
+#             print e
+#             print "Raw: ", line
+#             sys.exit()
+#             return None
 
     def get_remote_host(self):
         """Extrae el nombre del servidor remoto"""
