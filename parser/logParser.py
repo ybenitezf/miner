@@ -36,20 +36,21 @@ class LogEntry(object):
         squid_log = False
         import socket
         try:
-            addr = socket.inet_aton(parts[0])
+            addr = socket.inet_aton(parts[1])
         except socket.error, e:
             # squid access log
-            entry_type = True
+            squid_log = True
 
         try:
-            if entry_type:
+            if squid_log:
                 # intentar construir un SQUIDLogEntry
                 return SQUIDLogEntry(line, offset)
             else:
                 # intentar construir un CommonLogEntry
                 return CommonLogEntry(line, offset)
-        except:
+        except Exception, e:
             # sin ocurre un error, el que sea, retornar None
+            print e
             return None 
 
     def get_remote_host(self):
@@ -83,34 +84,36 @@ class CommonLogEntry(LogEntry):
 
     def __init__(self, line, offset):
         super(CommonLogEntry, self).__init__(line, offset)
-        p = apachelog.parser(apachelog.formats['common'])
-        self.values = p.parse(line)
+        #self.values = p.parse(line)
+        line = line.strip()
+        self.values = dict(enumerate(line.split(" ")))
         self.timeElapsed = 0
-        t = apachelog.parse_date(self.values['%t'])
-        self.timeStamp = self.parse_date()
-        self.clientIP = self.values['%h']
-        act = self.values['%r']
+        t = "{} {}".format(self.values[4], self.values[5])
+        self.timeStamp = self.parse_date(t)
+        self.clientIP = self.values[1]
+        act = "{} {}".format(self.values[6], self.values[7])
+        act = act.strip('"')
         if act != '-':
             act = act.split()
             self.action = act[0]
             self.uri = act[1]
         else:
             self.action, self.uri = (act, act)
-        self.code = self.values['%>s']
+        self.code = self.values[9]
         try:
-            self.size = int(self.values['%b'])
+            self.size = int(self.values[10])
         except:
             self.size = 0
         self.method = act[0]
-        self.userId = self.values['%u']
+        self.userId = self.values[2]
         self.heriarchy = '-'
         self.contentType = '-'
 
     def get_remote_host(self):
-        return self.values['%h']
+        return self.values[0].split(':')[0]
 
-    def parse_date(self):
-        date = self.values['%t']
+    def parse_date(self, t):
+        date = t
         date = date[1:-1]
         return datetime(int(date[7:11]),
                         int(apachelog.months[date[3:6]]),
