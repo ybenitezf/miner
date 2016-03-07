@@ -34,24 +34,37 @@ class LogEntry(object):
         """Factoria para entradas de log"""
         parts = line.split()
         squid_log = False
+        
+        entry = None
+        # para debug
+        import traceback
+#         exc_info = sys.exc_info()
+        # ----------
+        
         import socket
         try:
             addr = socket.inet_aton(parts[1])
+            assert parts[1] == socket.inet_ntoa(addr)
         except socket.error, e:
             # squid access log
             squid_log = True
+        except AssertionError:
+            squid_log = True    
 
         try:
             if squid_log:
                 # intentar construir un SQUIDLogEntry
-                return SQUIDLogEntry(line, offset)
+                entry = SQUIDLogEntry(line, offset)
             else:
                 # intentar construir un CommonLogEntry
-                return CommonLogEntry(line, offset)
+                entry = CommonLogEntry(line, offset)
         except Exception, e:
             # sin ocurre un error, el que sea, retornar None
-            print e
-            return None 
+#             traceback.print_exc()
+#             sys.exit(0)
+            entry = None
+        
+        return entry
 
     def get_remote_host(self):
         """Retorna el nombre del host remoto
