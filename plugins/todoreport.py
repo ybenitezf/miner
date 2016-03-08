@@ -5,6 +5,50 @@ from core.pydal import DAL, Field
 import sys
 import os.path
 
+"""
+Ejemplo de configuración:
+
+
+[TodoReport]
+salida=out.arff
+sitios=sitios.txt
+categorias=categorias
+"""
+
+
+class Category(object):
+    def __init__(self, db, directory, name):
+        self.db = db
+        super(Category, self).__init__()
+        urls = os.path.join(directory, 'urls')
+        lista_domains = []
+        lista_urls = []
+        if os.path.exists(urls):
+            for line in open(urls, 'r'):
+                lista_urls.append(line.strip())
+        domains = os.path.join(directory, 'domains')
+        if os.path.exists(domains):
+            for line in open(urls, 'r'):
+                lista_domains.append(line.strip())
+        self.name = name
+        self.cache = dict()
+        pk = db.categoria.insert(nombre=name,
+                            dominios=lista_domains,
+                            urls=lista_urls)
+        db.commit()
+        self.record = db.categoria(pk)
+
+
+    def is_in(self, entry):
+        for d in self.record.dominios:
+            if d in entry.uri:
+                return True
+        for u in self.record.urls:
+            if u in entry.uri:
+                return True
+        
+        return False
+
 
 class TodoReport(LogObserverPlugin):
     
@@ -16,18 +60,20 @@ class TodoReport(LogObserverPlugin):
         # lista de códigos de respuesta del servidor remoto a tener en cuenta
         self.return_codes = ['200']
         
+        self.categorias = list()
+        
         self.db = DAL('sqlite:memory')
         self.definir_tablas()
         
         try:
             # leer configuración e inicializar
             data_dir = self.config.get('main', 'data_dir')
-            m_path = os.path.join(data_dir, 'TodoReport')
+            data_dir = os.path.join(data_dir, 'TodoReport')
             
             # intenta configurar la lista de sitios
             try:
                 site_file = self.config.get('TodoReport', 'sitios')
-                for l in open(os.path.join(m_path, site_file), "r"):
+                for l in open(os.path.join(data_dir, site_file), "r"):
                     l = l.strip('\n\r ')
                     if l:
                         self.db.sitios.insert(nombre_host=l)
@@ -36,11 +82,28 @@ class TodoReport(LogObserverPlugin):
             except:
                 self.usar_sitios = False
                 
+            # categorias
+            #
             
-        except:
+            try:
+                classes_dir = self.config.get('TodoReport', 'categorias')
+                classes_dir = os.path.join(data_dir, classes_dir)
+                (dirpath, categories, filenames) = os.walk(classes_dir).next()
+                cats = list()
+                for cat in categories:
+                    c = Category(self.db, os.path.join(dirpath, cat), cat)
+                    cats.append(c)
+                        
+                self.categorias = cats
+            except:
+                pass
+                
+            
+        except Exception, e:
             # si esto pasa el plugin no esta configurado y no dara salida
             # ni procesará las entradas
             self.configurado = False
+            print e
         
         self.configurado = False if self.db is None else self.configurado
             
@@ -59,6 +122,15 @@ class TodoReport(LogObserverPlugin):
         # sitios a tener en cuenta, si se configuran
         db.define_table("sitios",
             Field("nombre_host", "string"))
+        
+        # categorias
+        db.define_table("categoria",
+                        Field("nombre", "string"),
+                        Field("dominios", "list:string"),
+                        Field("urls", "list:string"))
+        db.define_table("usuario_categoria",
+                        Field("usuario_id", "reference usuarios"),
+                        Field("categoria_id", "reference categoria"))
         
     def tiene_sitio(self, entry):
         assert isinstance(entry, SQUIDLogEntry)
@@ -98,6 +170,15 @@ class TodoReport(LogObserverPlugin):
                     st_ur.update_record(bytes=(st_ur.bytes + entry.size),
                                         cantidad=(st_ur.cantidad + 1),
                                         tiempo_proxy=(st_ur.tiempo_proxy + entry.timeElapsed))
+                    
+                for categ in self.categorias:
+                    if categ.is_in(entry):
+                        c_u = db.usuario_categoria(usuario_id=usuario.id,
+                                                   categoria_id=categ.record.id)
+                        if c_u is None:
+                            c_u = db.usuario_categoria.insert(usuario_id=usuario.id,
+                                                   categoria_id=categ.record.id)
+                
                 db.commit()
         
         
@@ -107,6 +188,7 @@ class TodoReport(LogObserverPlugin):
                 self.config.get('TodoReport', 'salida'),'w'))
             
     def dump_arff(self,of):
+        db = self.db
         of.write("@RELATION    internet\n")
         of.write("\n")
         of.write("@ATTRIBUTE    usuario    string\n")
@@ -114,10 +196,13 @@ class TodoReport(LogObserverPlugin):
         of.write("@ATTRIBUTE    bytes    numeric\n")
         of.write("@ATTRIBUTE    cantidad    integer\n")
         of.write("@ATTRIBUTE    tiempo_proxy    numeric\n")
+        for categ in self.categorias:
+            of.write("@ATTRIBUTE    {}    integer\n".format(categ.name))
         of.write("\n")
         of.write("@DATA\n")
-        db = self.db
         sitios = db(db.sitio_usuario.id > 0).select(db.sitio_usuario.host, distinct=True)
+        total = db(db.usuarios.id > 0).count()
+        contador = 0
         for usuario in db(db.usuarios.id > 0).select():
             res = '{},'.format(repr(usuario.nombre))
             for sitio in sitios:
@@ -138,10 +223,22 @@ class TodoReport(LogObserverPlugin):
             m_segundos = db.sitio_usuario.tiempo_proxy.sum()
             m_segundos = db(query).select(m_segundos).first()[m_segundos]
             segundos = m_segundos / 1000
-            res += "{}".format(segundos)
+            res += "{},".format(segundos)
             
-            #of.write("{}\n".format(res[:-1]))
-            of.write("{}\n".format(res))
+            for categ in self.categorias:
+                c_u = db.usuario_categoria(usuario_id=usuario.id,
+                                            categoria_id=categ.record.id)
+                if c_u is None:
+                    res += "0,"
+                else:
+                    res += "1,"
+            
+            of.write("{}\n".format(res[:-1]))
+            stat = (contador * 100) / total 
+            out = "TodoReport: {0:.2f}".format(stat)
+            sys.stdout.write("\r%s           " % out)
+            sys.stdout.flush()
+            contador += 1
             
 
     def nombres_secciones(self, of):
