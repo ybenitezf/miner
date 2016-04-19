@@ -137,11 +137,20 @@ class TodoReport(LogObserverPlugin):
         db = self.db
         query = (db.sitios.id > 0)
 
-        for sitio in db(query).select(db.sitios.ALL):
-            if sitio.nombre_host in entry.uri:
-                return True
+        if self.usar_sitios:
+            for sitio in db(query).select(db.sitios.ALL):
+                if sitio.nombre_host in entry.uri:
+                    return (True, sitio.nombre_host)
 
-        return False
+            return (False, None)
+        else:
+            nombre = entry.get_remote_host()
+            st = db.sitios(nombre_host=nombre)
+            if st is None:
+                st_id = db.sitios.insert(nombre_host=nombre)
+                st = db.sitios(st_id)
+                db.commit()
+            return (True, nombre)
 
     def notificar(self, entry):
         db = self.db
@@ -151,18 +160,20 @@ class TodoReport(LogObserverPlugin):
             cond = (entry.contentType in self.content_types_list)
             cond = cond and (entry.code in self.return_codes)
             cond = cond and (entry.action in self.actions)
-            if cond and self.usar_sitios:
-                cond = cond and self.tiene_sitio(entry)
+            # if cond and self.usar_sitios:
+            if cond:
+                encontrado, nombre_host = self.tiene_sitio(entry)
+                cond = cond and encontrado
             if cond:
                 usuario = db.usuarios(nombre=entry.userId)
                 if usuario is None:
                     u_id = db.usuarios.insert(nombre=entry.userId)
                     usuario = db.usuarios(u_id)
                 st_ur = db.sitio_usuario(usuario_id=usuario.id,
-                                         host=entry.get_remote_host())
+                                         host=nombre_host)
                 if st_ur is None:
                     db.sitio_usuario.insert(usuario_id=usuario.id,
-                                            host=entry.get_remote_host(),
+                                            host=nombre_host,
                                             bytes=entry.size,
                                             cantidad=1,
                                             tiempo_proxy=entry.timeElapsed)
@@ -200,14 +211,14 @@ class TodoReport(LogObserverPlugin):
             of.write("@ATTRIBUTE    {}    integer\n".format(categ.name))
         of.write("\n")
         of.write("@DATA\n")
-        sitios = db(db.sitio_usuario.id > 0).select(db.sitio_usuario.host, distinct=True)
+        sitios = db(db.sitios.id > 0).select(db.sitios.nombre_host)
         total = db(db.usuarios.id > 0).count()
         contador = 0
         for usuario in db(db.usuarios.id > 0).select():
             res = '{},'.format(repr(usuario.nombre))
             for sitio in sitios:
                 st_ur = db.sitio_usuario(usuario_id=usuario.id,
-                                         host=sitio.host)
+                                         host=sitio.nombre_host)
                 if st_ur is None:
                     res += "0,0,"
                 else:
@@ -235,7 +246,7 @@ class TodoReport(LogObserverPlugin):
 
             of.write("{}\n".format(res[:-1]))
             stat = (contador * 100) / total
-            out = "TodoReport: {0:.2f}".format(stat)
+            out = "TodoReport: {0:.2f} %".format(stat)
             sys.stdout.write("\r%s           " % out)
             sys.stdout.flush()
             contador += 1
@@ -243,7 +254,7 @@ class TodoReport(LogObserverPlugin):
 
     def nombres_secciones(self, of):
         db = self.db
-        query = (db.sitio_usuario.id > 0)
-        for s in db(query).select(db.sitio_usuario.host, distinct=True):
-            of.write("@ATTRIBUTE    {}_b    numeric\n".format(s.host))
-            of.write("@ATTRIBUTE    {}_c    integer\n".format(s.host))
+        query = (db.sitios.id > 0)
+        for s in db(query).select(db.sitios.nombre_host, distinct=True):
+            of.write("@ATTRIBUTE    {}_b    numeric\n".format(s.nombre_host))
+            of.write("@ATTRIBUTE    {}_c    integer\n".format(s.nombre_host))
